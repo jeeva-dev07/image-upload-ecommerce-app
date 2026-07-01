@@ -1,0 +1,55 @@
+1.What is multipart/form-data and why is it different from a normal JSON request when uploading files?
+multipart/form-data is an HTTP request format used to upload files like images, videos, or documents. It allows both file data and normal form fields to be sent together in one request. It is different from a normal JSON request because JSON (application/json) only supports text data and cannot handle binary file data. Therefore, file uploads must use multipart/form-data instead of JSON.
+2.How do you generate a unique filename for every upload? What would happen if you didn’t?
+We generate a unique filename using uuid so that every uploaded file gets a different name even if the original filenames are the same. This is done using:
+
+import uuid
+from werkzeug.utils import secure_filename
+
+file = request.files['image']
+filename = secure_filename(file.filename)
+unique_name = f"{uuid.uuid4().hex}_{filename}"
+file.save(os.path.join(UPLOAD_FOLDER, unique_name))
+
+If we don’t use unique filenames, files with the same name will overwrite each other, causing data loss and wrong images being shown in the frontend.
+
+3.What validation did you add to block non-image files or oversized files? Show the exact code.
+We added validation to allow only image files and restrict file size.
+
+Allowed file types:
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+Upload validation:
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    file = request.files.get("image")
+
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type"}), 400
+
+File size limit:
+
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024  # 2MB limit
+
+This prevents non-image files and large files from being uploaded.
+
+4.Where does Flask store the uploaded file, and what URL pattern does the frontend use to display it afterward?
+Flask stores uploaded files in the static/uploads folder inside the project directory.
+
+Backend saves file and generates URL like:
+
+image_url = f"http://localhost:5000/static/uploads/{unique_name}"
+
+Frontend displays the image using:
+
+<img src={product.image_url} alt="product" />
+
+So the flow is: upload file → save in static/uploads → generate URL → frontend uses URL to display image.
